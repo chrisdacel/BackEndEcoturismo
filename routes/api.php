@@ -446,56 +446,58 @@ Route::middleware(['web', 'auth:sanctum'])->group(function () {
 
         // Perfil: subir foto
         Route::post('/profile/avatar', function (Request $request) {
-            $request->validate([
-                'avatar' => 'required|image|max:2048',
-            ]);
-
-            $user = $request->user();
-            if (!$user) {
-                return response()->json(['message' => 'No autenticado'], 401);
-            }
-            
             try {
-                // Eliminar imagen anterior si existe
-                if ($user->image) {
-                    // Intentar eliminar del storage
-                    if (Storage::disk('public')->exists($user->image)) {
-                        Storage::disk('public')->delete($user->image);
-                    }
-                    // Intentar eliminar de public/
-                    $publicPath = public_path($user->image);
-                    if (file_exists($publicPath)) {
-                        @unlink($publicPath);
+                // Validar primero
+                $validated = $request->validate([
+                    'avatar' => 'required|image|mimes:jpeg,png,jpg,webp,gif|max:2048',
+                ]);
+
+                $user = $request->user();
+                if (!$user) {
+                    return response()->json(['message' => 'No autenticado'], 401);
+                }
+                
+                // Eliminar imagen anterior
+                if ($user->image && $user->image !== 'null') {
+                    try {
+                        $publicPath = public_path($user->image);
+                        if (file_exists($publicPath)) {
+                            @unlink($publicPath);
+                        }
+                    } catch (\Exception $e) {
+                        // Ignorar error al eliminar
                     }
                 }
                 
-                // Crear carpeta avatars si no existe
-                $avatarDir = public_path('avatars');
-                if (!is_dir($avatarDir)) {
-                    @mkdir($avatarDir, 0755, true);
-                }
-                
-                // Generar nombre único para el archivo
-                $ext = $request->file('avatar')->getClientOriginalExtension();
+                // Generar nombre
+                $ext = $request->file('avatar')->guessExtension();
                 $filename = 'avatar_' . $user->id . '_' . time() . '.' . $ext;
+                $relativePath = 'avatars/' . $filename;
                 
-                // Guardar archivo en public/avatars/
-                $request->file('avatar')->move($avatarDir, $filename);
-                $path = 'avatars/' . $filename;
-
+                // Guardar usando stream (más eficiente)
+                $resource = fopen($request->file('avatar')->getRealPath(), 'r');
+                $saved = Storage::disk('public')->writeStream($relativePath, $resource);
+                if (is_resource($resource)) {
+                    fclose($resource);
+                }
+                
+                if (!$saved) {
+                    return response()->json(['message' => 'Error al guardar archivo'], 500);
+                }
+                
                 // Actualizar usuario
-                $user->image = $path;
+                $user->image = $relativePath;
                 $user->save();
-
+                
                 return response()->json([
                     'message' => 'Foto actualizada',
-                    'avatar_url' => url('/api/files/' . $path),
+                    'avatar_url' => url('/api/files/' . $relativePath),
                     'user' => $user,
-                ]);
+                ], 200);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                return response()->json(['errors' => $e->errors()], 422);
             } catch (\Exception $e) {
-                return response()->json([
-                    'message' => 'Error al subir archivo: ' . $e->getMessage()
-                ], 500);
+                return response()->json(['message' => 'Error: ' . $e->getMessage()], 500);
             }
         });
 
