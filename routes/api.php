@@ -75,21 +75,45 @@ Route::get('/preferences', function () {
 
 // Servir archivos desde storage (avatares, imágenes, etc)
 Route::get('/files/{type}/{filename}', function ($type, $filename) {
-    // Primero buscar en storage/app/public/ (para imágenes subidas)
-    $path = storage_path("app/public/{$type}/{$filename}");
+    // 1. Buscar en storage/app/public/ (para imágenes subidas por sistema)
+    $storagePath = "{$type}/{$filename}";
     
-    // Si no existe, buscar en public/seeders/images/places/ (imágenes del seeder)
-    if (!file_exists($path)) {
-        $path = public_path("seeders/images/places/{$type}/{$filename}");
+    if (Storage::disk('public')->exists($storagePath)) {
+        return response()->file(storage_path("app/public/{$storagePath}"));
     }
     
-    // Validar que el archivo existe
-    if (!file_exists($path)) {
-        return response()->json(['message' => 'Archivo no encontrado'], 404);
+    // 2. Buscar en public/ directamente (avatares, imágenes subidas por usuarios)
+    $publicPath = public_path("{$type}/{$filename}");
+    if (file_exists($publicPath)) {
+        return response()->file($publicPath);
     }
     
-    // Retornar el archivo
-    return response()->file($path);
+    // 3. Buscar en seeders con el tipo exacto
+    $seedPath = public_path("seeders/images/places/{$type}/{$filename}");
+    if (file_exists($seedPath)) {
+        return response()->file($seedPath);
+    }
+    
+    // 4. Si es plural, intentar el singular
+    if (substr($type, -1) === 's') {
+        $typeSingular = substr($type, 0, -1);
+        $seedPath = public_path("seeders/images/places/{$typeSingular}/{$filename}");
+        if (file_exists($seedPath)) {
+            return response()->file($seedPath);
+        }
+    }
+    
+    // 5. Si es singular, intentar el plural
+    if (substr($type, -1) !== 's') {
+        $typePlural = $type . 's';
+        $seedPath = public_path("seeders/images/places/{$typePlural}/{$filename}");
+        if (file_exists($seedPath)) {
+            return response()->file($seedPath);
+        }
+    }
+    
+    // Archivo no encontrado
+    return response()->json(['message' => 'Archivo no encontrado: ' . $type . '/' . $filename], 404);
 })->where('filename', '.*');
 
 // Rutas públicas de eventos (para todos, logueados o no)
@@ -293,6 +317,17 @@ Route::middleware(['web', 'auth:sanctum'])->group(function () {
             return response()->json(['message' => 'Sesión cerrada']);
         });
 
+        // Obtener usuario actual (alias para /profile)
+        Route::get('/user', function (Request $request) {
+            $user = $request->user();
+            $userData = $user->toArray();
+            if ($user->image) {
+                $imagePath = str_replace('\\', '/', $user->image);
+                $userData['avatar_url'] = url('/api/files/' . $imagePath);
+            }
+            return response()->json($userData);
+        });
+
         // Perfil: obtener perfil actual
         Route::get('/profile', function (Request $request) {
             $user = $request->user();
@@ -411,27 +446,59 @@ Route::middleware(['web', 'auth:sanctum'])->group(function () {
 
         // Perfil: subir foto
         Route::post('/profile/avatar', function (Request $request) {
-            $request->validate([
-                'avatar' => 'required|image|max:2048',
-            ]);
+            try {
+                // Validar primero
+                $validated = $request->validate([
+                    'avatar' => 'required|image|mimes:jpeg,png,jpg,webp,gif|max:2048',
+                ]);
 
-            $user = $request->user();
-            $path = $request->file('avatar')->store('avatars', 'public');
-
-            // Guardamos en la columna image
-            $user->image = $path;
-            $user->save();
-
-            // Preparar respuesta con avatar_url incluido
-            $userData = $user->toArray();
-            $imagePath = str_replace('\\', '/', $path);
-            $userData['avatar_url'] = url('/api/files/' . $imagePath);
-
-            return response()->json([
-                'message' => 'Foto actualizada',
-                'avatar_url' => url('/api/files/' . $imagePath),
-                'user' => $userData,
-            ]);
+                $user = $request->user();
+                if (!$user) {
+                    return response()->json(['message' => 'No autenticado'], 401);
+                }
+                
+                // Eliminar imagen anterior
+                if ($user->image && $user->image !== 'null') {
+                    try {
+                        $publicPath = public_path($user->image);
+                        if (file_exists($publicPath)) {
+                            @unlink($publicPath);
+                        }
+                    } catch (\Exception $e) {
+                        // Ignorar error al eliminar
+                    }
+                }
+                
+                // Generar nombre
+                $ext = $request->file('avatar')->guessExtension();
+                $filename = 'avatar_' . $user->id . '_' . time() . '.' . $ext;
+                $relativePath = 'avatars/' . $filename;
+                
+                // Guardar usando stream (más eficiente)
+                $resource = fopen($request->file('avatar')->getRealPath(), 'r');
+                $saved = Storage::disk('public')->writeStream($relativePath, $resource);
+                if (is_resource($resource)) {
+                    fclose($resource);
+                }
+                
+                if (!$saved) {
+                    return response()->json(['message' => 'Error al guardar archivo'], 500);
+                }
+                
+                // Actualizar usuario
+                $user->image = $relativePath;
+                $user->save();
+                
+                return response()->json([
+                    'message' => 'Foto actualizada',
+                    'avatar_url' => url('/api/files/' . $relativePath),
+                    'user' => $user,
+                ], 200);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                return response()->json(['errors' => $e->errors()], 422);
+            } catch (\Exception $e) {
+                return response()->json(['message' => 'Error: ' . $e->getMessage()], 500);
+            }
         });
 
         // Perfil: eliminar foto (restaurar avatar por defecto)
