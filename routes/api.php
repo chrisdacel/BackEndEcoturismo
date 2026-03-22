@@ -160,6 +160,10 @@ Route::middleware('web')->group(function () {
     Route::get('/places/{id}', [TuristicPlaceApiController::class, 'show']);
     
     Route::post('/register', function (Request $request) {
+        if (Auth::guard('web')->check() || Auth::guard('sanctum')->check()) {
+            return response()->json(['message' => 'Ya has iniciado sesión.'], 403);
+        }
+        
         $data = $request->validate([
             'name' => 'required|string|min:2|max:50',
             'last_name' => 'nullable|string|min:2|max:50',
@@ -219,6 +223,10 @@ Route::middleware('web')->group(function () {
     });
 
     Route::post('/login', function (Request $request) {
+        if (Auth::guard('web')->check() || Auth::guard('sanctum')->check()) {
+            return response()->json(['message' => 'Ya has iniciado sesión.'], 403);
+        }
+
         $credentials = $request->validate([
             'email' => 'required|email',
             'password' => 'required|string',
@@ -259,6 +267,10 @@ Route::middleware('web')->group(function () {
     });
 
     Route::post('/forgot-password', function (Request $request) {
+        if (Auth::guard('web')->check() || Auth::guard('sanctum')->check()) {
+            return response()->json(['message' => 'Ya has iniciado sesión.'], 403);
+        }
+        
         $request->validate(['email' => 'required|email']);
         $status = Password::sendResetLink($request->only('email'));
         if ($status === Password::RESET_LINK_SENT) {
@@ -269,6 +281,10 @@ Route::middleware('web')->group(function () {
     });
 
     Route::post('/reset-password', function (Request $request) {
+        if (Auth::guard('web')->check() || Auth::guard('sanctum')->check()) {
+            return response()->json(['message' => 'Ya has iniciado sesión.'], 403);
+        }
+
         $request->validate([
             'token' => 'required',
             'email' => 'required|email',
