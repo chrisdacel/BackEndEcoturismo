@@ -550,6 +550,7 @@ class TuristicPlaceApiController extends Controller
         if (!$file) return null;
         $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
         $image = $manager->read($file);
+        $image->scaleDown(1920, 1920);
         $encoded = $image->toWebp(80);
         $filename = uniqid() . '.webp';
         $fullPath = $pathPrefix . '/' . $filename;

@@ -760,6 +760,7 @@ Route::middleware(['web', 'auth:sanctum'])->group(function () {
                     $file = $request->file('image');
                     $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
                     $image = $manager->read($file);
+                    $image->scaleDown(1920, 1920);
                     $encoded = $image->toWebp(80);
                     $filename = uniqid() . '.webp';
                     $fullPath = 'eventos/' . $filename;
@@ -810,6 +811,7 @@ Route::middleware(['web', 'auth:sanctum'])->group(function () {
                     $file = $request->file('image');
                     $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
                     $image = $manager->read($file);
+                    $image->scaleDown(1920, 1920);
                     $encoded = $image->toWebp(80);
                     $filename = uniqid() . '.webp';
                     $fullPath = 'eventos/' . $filename;
