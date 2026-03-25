@@ -13,7 +13,9 @@ return new class extends Migration
     public function up(): void
     {
         // MySQL only: alter enum to add 'inactive'
-        DB::statement("ALTER TABLE users MODIFY status ENUM('pending','approved','rejected','active','inactive') DEFAULT 'active'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE users MODIFY status ENUM('pending','approved','rejected','active','inactive') DEFAULT 'active'");
+        }
     }
 
     /**
@@ -22,6 +24,8 @@ return new class extends Migration
     public function down(): void
     {
         // Remove 'inactive' from enum
-        DB::statement("ALTER TABLE users MODIFY status ENUM('pending','approved','rejected','active') DEFAULT 'active'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE users MODIFY status ENUM('pending','approved','rejected','active') DEFAULT 'active'");
+        }
     }
 };
