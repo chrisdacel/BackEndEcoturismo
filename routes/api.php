@@ -642,6 +642,7 @@ Route::middleware(['web', 'auth:sanctum'])->group(function () {
                     ->where('place_id', $place->id)
                     ->update([
                         'visited_at' => $now,
+                        'visits_count' => DB::raw('visits_count + 1'),
                         'updated_at' => $now,
                     ]);
             } else {
@@ -668,6 +669,7 @@ Route::middleware(['web', 'auth:sanctum'])->group(function () {
                     'user_place_visits.id',
                     'user_place_visits.place_id',
                     'user_place_visits.visited_at',
+                    'user_place_visits.visits_count',
                     'turistic_places.name as place_name',
                     'turistic_places.localization as place_localization'
                 )
@@ -678,6 +680,7 @@ Route::middleware(['web', 'auth:sanctum'])->group(function () {
                     return [
                         'id' => $row->id,
                         'visited_at' => $row->visited_at,
+                        'visits_count' => $row->visits_count ?? 1,
                         'place' => [
                             'id' => $row->place_id,
                             'name' => $row->place_name,
