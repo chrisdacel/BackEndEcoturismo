@@ -21,7 +21,8 @@ use App\Http\Controllers\Api\ReviewApiController;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Api\CommentController;   
-require_once __DIR__.'/countries_api.php';
+use App\Models\Country;
+
 
 Route::get('/health', function() {
     return response()->json(['status' => 'ok']);
@@ -115,6 +116,11 @@ Route::get('/files/{type}/{filename}', function ($type, $filename) {
     // Archivo no encontrado
     return response()->json(['message' => 'Archivo no encontrado: ' . $type . '/' . $filename], 404);
 })->where('filename', '.*');
+
+Route::get('/countries', function () {
+    return Country::orderBy('name', 'asc')->get(['id', 'name']);
+});
+
 
 // Rutas públicas de eventos (para todos, logueados o no)
 Route::get('/events/upcoming', function (Request $request) {
