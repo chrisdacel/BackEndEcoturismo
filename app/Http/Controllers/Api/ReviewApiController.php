@@ -35,23 +35,25 @@ class ReviewApiController extends Controller
                 'min:10',
                 'max:1000',
                 function ($attribute, $value, $fail) {
-                    // Filtro de palabras prohibidas (español e inglés)
+                    if (!$value) return;
                     $badWords = [
-                        // Español
                         'puta','puto','mierda','joder','gilipollas','pendejo','cabron','coño','marica','imbecil','idiota','culero','zorra','perra','malparido','hijueputa','verga','chingar','cabrón','pendeja','estupido','estúpido','estupida','estúpida',
-                        // Inglés
                         'fuck','shit','bitch','asshole','bastard','dick','cunt','fag','faggot','slut','whore','motherfucker','douche','douchebag','bollocks','bugger','bloody','wanker','prick','twat','jerk','moron','retard','suck','damn','crap','pussy','cock','arse','arsehole','nigger','nigga','spic','chink','kike','fucker','fucking','fucks','fucked','faggot',
                     ];
-                    if ($value) {
-                        $text = mb_strtolower($value, 'UTF-8');
-                        foreach ($badWords as $bad) {
-                            if (strpos($text, $bad) !== false) {
-                                $fail('El comentario contiene lenguaje inapropiado. Por favor, utiliza un lenguaje respetuoso.');
-                                break;
-                            }
+                    $text = mb_strtolower($value, 'UTF-8');
+                    foreach ($badWords as $bad) {
+                        if (strpos($text, $bad) !== false) {
+                            $fail('El comentario contiene lenguaje inapropiado. Por favor, utiliza un lenguaje respetuoso.');
+                            return;
                         }
                     }
+                    try {
+                        if (class_exists(\Waad\ProfanityFilter\Facades\ProfanityFilter::class) && \Waad\ProfanityFilter\Facades\ProfanityFilter::hasProfanity($value)) {
+                            $fail('El comentario contiene lenguaje inapropiado. Por favor, utiliza un lenguaje respetuoso.');
+                        }
+                    } catch (\Throwable $e) {}
                 }
+
             ],
         ]);
 
@@ -154,10 +156,25 @@ class ReviewApiController extends Controller
                 'min:10',
                 'max:1000',
                 function ($attribute, $value, $fail) {
-                    // if ($value && ProfanityFilter::hasProfanity($value)) {
-                    //     $fail('El comentario contiene lenguaje inapropiado. Por favor, utiliza un lenguaje respetuoso.');
-                    // }
+                    if (!$value) return;
+                    $badWords = [
+                        'puta','puto','mierda','joder','gilipollas','pendejo','cabron','coño','marica','imbecil','idiota','culero','zorra','perra','malparido','hijueputa','verga','chingar','cabrón','pendeja','estupido','estúpido','estupida','estúpida',
+                        'fuck','shit','bitch','asshole','bastard','dick','cunt','fag','faggot','slut','whore','motherfucker','douche','douchebag','bollocks','bugger','bloody','wanker','prick','twat','jerk','moron','retard','suck','damn','crap','pussy','cock','arse','arsehole','nigger','nigga','spic','chink','kike','fucker','fucking','fucks','fucked','faggot',
+                    ];
+                    $text = mb_strtolower($value, 'UTF-8');
+                    foreach ($badWords as $bad) {
+                        if (strpos($text, $bad) !== false) {
+                            $fail('El comentario contiene lenguaje inapropiado. Por favor, utiliza un lenguaje respetuoso.');
+                            return;
+                        }
+                    }
+                    try {
+                        if (class_exists(\Waad\ProfanityFilter\Facades\ProfanityFilter::class) && \Waad\ProfanityFilter\Facades\ProfanityFilter::hasProfanity($value)) {
+                            $fail('El comentario contiene lenguaje inapropiado. Por favor, utiliza un lenguaje respetuoso.');
+                        }
+                    } catch (\Throwable $e) {}
                 }
+
             ],
         ]);
 

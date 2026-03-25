@@ -14,7 +14,9 @@ class reviews extends Model
         'is_restricted',
         'restricted_by_role',
         'restriction_reason',
+        'edit_count',
     ];
+
 
     public function user()
     {
