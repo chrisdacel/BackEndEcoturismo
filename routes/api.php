@@ -922,10 +922,10 @@ Route::middleware(['web', 'auth:sanctum'])->group(function () {
                     // Promedio de calificación de sitios del operador
                     $avg_rating = $reviews_count > 0 ? round($reviews->avg('rating'), 2) : 0.0;
 
-                    // Comentarios recientes en sitios del operador (últimos 6)
+                    // Comentarios recientes en sitios del operador
                     $recent_comments = reviews::whereIn('place_id', $places->pluck('id'))
                         ->orderBy('created_at', 'desc')
-                        ->limit(6)
+                        ->limit(500)
                         ->get()
                         ->map(function ($review) {
                             return [
@@ -933,6 +933,7 @@ Route::middleware(['web', 'auth:sanctum'])->group(function () {
                                 'user_name' => optional($review->user)->name,
                                 'created_at' => $review->created_at,
                                 'comment' => $review->comment,
+                                'rating' => $review->rating,
                             ];
                         });
 
