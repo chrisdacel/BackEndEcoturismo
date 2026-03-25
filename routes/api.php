@@ -242,6 +242,13 @@ Route::middleware('web')->group(function () {
         if (Auth::attempt($credentials)) {
             $user = Auth::user();
             
+            if ($user->status === 'inactive') {
+                Auth::logout();
+                return response()->json([
+                    'message' => 'Tu cuenta ha sido desactivada. Por favor, contacta con el administrador.',
+                ], 403);
+            }
+
             // Verificar si el email está verificado
             if (!$user->hasVerifiedEmail()) {
                 Auth::logout();

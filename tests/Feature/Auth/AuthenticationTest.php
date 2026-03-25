@@ -77,4 +77,21 @@ class AuthenticationTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['email', 'password']);
     }
+
+    public function test_inactive_user_cannot_login(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'inactive@example.com',
+            'status' => 'inactive',
+        ]);
+
+        $response = $this->postJson('/api/login', [
+            'email' => 'inactive@example.com',
+            'password' => 'Password1',
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJson(['message' => 'Tu cuenta ha sido desactivada. Por favor, contacta con el administrador.']);
+    }
 }
+
